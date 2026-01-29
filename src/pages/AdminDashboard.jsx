@@ -26,6 +26,7 @@ function AdminDashboard() {
           <DashboardCard
             title="Approval Requests"
             description="Approve or reject visitor entry requests"
+            link="/approvals"
           />
 
           <DashboardCard
@@ -40,10 +41,10 @@ function AdminDashboard() {
           />
         </div>
 
-        {/* <div className="widgets-grid">
+        <div className="widgets-grid">
           <VisitorTrendChart />
           <ZoneWidget />
-        </div> */}
+        </div>
       </div>
     </>
   );
