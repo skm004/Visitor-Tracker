@@ -3,6 +3,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import VisitorsInside from "./pages/VisitorsInside";
 import ApprovalList from "./pages/ApprovalList";
 import GatePortal from "./pages/GatePortal";
+import HistoryPage from "./pages/HistoryPage";
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/approvals" element={<ApprovalList />} />
         <Route path="/visitors-inside" element={<VisitorsInside />} />
         <Route path="/gate" element={<GatePortal />} />
+        <Route path="/history" element={<HistoryPage />} />
       </Routes>
     </BrowserRouter>
   );

@@ -3,71 +3,94 @@ import { useEffect, useState } from "react";
 import "../styles/dashboard.css";
 
 import { db } from "../firebase";
-import { ref, get, update } from "firebase/database";
+import { ref, onValue, update } from "firebase/database";
 
 function GatePortal() {
   const [visitors, setVisitors] = useState([]);
 
   const BACKEND_URL = "http://localhost:5000";
 
+  // today in consistent format
+  const today = new Date().toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
   // ----------------------------
-  // Fetch approved + inside
+  // Firebase realtime listener
   // ----------------------------
-  const fetchVisitors = async () => {
-    const snapshot = await get(ref(db, "visitorRequests"));
-
-    if (!snapshot.exists()) return;
-
-    const data = snapshot.val();
-
-    const list = Object.keys(data)
-      .map((key) => ({
-        id: key,
-        ...data[key],
-      }))
-      .filter(
-        (v) => v.status === "APPROVED" || v.status === "INSIDE"
-      );
-
-    setVisitors(list);
-  };
-
   useEffect(() => {
-    fetchVisitors();
-  }, []);
+    const visitorRef = ref(db, "visitorRequests");
+
+    const unsubscribe = onValue(visitorRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        setVisitors([]);
+        return;
+      }
+
+      const data = snapshot.val();
+
+      const list = Object.keys(data)
+        .map((key) => ({
+          id: key,
+          ...data[key],
+        }))
+        .filter(
+          (v) =>
+            v.visitDate === today &&
+            (v.status === "APPROVED" || v.status === "INSIDE")
+        );
+
+      setVisitors(list);
+    });
+
+    return () => unsubscribe();
+  }, [today]);
 
   // ----------------------------
   // Check-In
   // ----------------------------
   const checkIn = async (v) => {
-    await fetch(`${BACKEND_URL}/checkin`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: v.name }),
-    });
+    try {
+      // 1️⃣ Notify Flask
+      await fetch(`${BACKEND_URL}/checkin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: v.name }),
+      });
 
-    await update(ref(db, `visitorRequests/${v.id}`), {
-      status: "INSIDE",
-    });
+      // 2️⃣ Update Firebase
+      await update(ref(db, `visitorRequests/${v.id}`), {
+        status: "INSIDE",
+      });
 
-    fetchVisitors();
+    } catch (err) {
+      console.error("Check-in failed:", err);
+    }
   };
 
   // ----------------------------
   // Check-Out
   // ----------------------------
   const checkOut = async (v) => {
-    await fetch(`${BACKEND_URL}/checkout`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: v.name }),
-    });
+    try {
+      // 1️⃣ Notify Flask
+      await fetch(`${BACKEND_URL}/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: v.name }),
+      });
 
-    await update(ref(db, `visitorRequests/${v.id}`), {
-      status: "EXITED",
-    });
+      // 2️⃣ Update Firebase
+      await update(ref(db, `visitorRequests/${v.id}`), {
+        status: "EXITED",
+      });
 
-    fetchVisitors();
+      // 🚫 EXITED visitors automatically disappear
+    } catch (err) {
+      console.error("Check-out failed:", err);
+    }
   };
 
   return (
@@ -75,7 +98,7 @@ function GatePortal() {
       <Navbar />
 
       <div className="dashboard-container">
-        <h2>Gate Check-In / Check-Out</h2>
+        <h2>Gate Portal (Today)</h2>
 
         <div className="table-card">
           <table className="visitor-table">
@@ -90,35 +113,43 @@ function GatePortal() {
             </thead>
 
             <tbody>
-              {visitors.map((v, index) => (
-                <tr key={v.id}>
-                  <td>{index + 1}</td>
-                  <td>{v.name}</td>
-                  <td>{v.phone}</td>
-                  <td>{v.status}</td>
-                  <td>
-                    {v.status === "APPROVED" ? (
-                      <button
-                        className="view-btn"
-                        onClick={() => checkIn(v)}
-                      >
-                        Check-In
-                      </button>
-                    ) : (
-                      <button
-                        className="view-btn"
-                        style={{
-                          background: "#ef4444",
-                          color: "white",
-                        }}
-                        onClick={() => checkOut(v)}
-                      >
-                        Check-Out
-                      </button>
-                    )}
+              {visitors.length === 0 ? (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: "center" }}>
+                    No visitors inside today
                   </td>
                 </tr>
-              ))}
+              ) : (
+                visitors.map((v, index) => (
+                  <tr key={v.id}>
+                    <td>{index + 1}</td>
+                    <td>{v.name}</td>
+                    <td>{v.phone}</td>
+                    <td>{v.status}</td>
+                    <td>
+                      {v.status === "APPROVED" ? (
+                        <button
+                          className="view-btn"
+                          onClick={() => checkIn(v)}
+                        >
+                          Check-In
+                        </button>
+                      ) : (
+                        <button
+                          className="view-btn"
+                          style={{
+                            background: "#ef4444",
+                            color: "white",
+                          }}
+                          onClick={() => checkOut(v)}
+                        >
+                          Check-Out
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

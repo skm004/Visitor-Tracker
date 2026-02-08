@@ -22,86 +22,100 @@ app = Flask(__name__)
 CORS(app)
 
 # -------------------------
-# SINGLE SOURCE OF VISITORS
+# ACTIVE VISITORS (RAM)
 # -------------------------
 VISITORS = {}
 
 # -------------------------
-# WIFI SETUP (ONCE)
+# WIFI SETUP
 # -------------------------
 wifi = pywifi.PyWiFi()
 iface = wifi.interfaces()[0]
 
 # -------------------------
-# REHYDRATE VISITORS ON START
+# 🔑 FIREBASE HELPERS
+# -------------------------
+def get_firebase_visitor_ref(name):
+    ref = db.reference("visitorRequests")
+    data = ref.get()
+
+    if not data:
+        return None
+
+    for key, visitor in data.items():
+        if visitor and visitor.get("name") == name:
+            return ref.child(key)
+
+    return None
+
+
+def append_history_to_firebase(name, entry):
+    ref = get_firebase_visitor_ref(name)
+    if not ref:
+        return
+
+    history = ref.child("history").get() or []
+    history.append(entry)
+
+    ref.update({
+        "history": history,
+        "currentZone": entry["zone"]
+    })
+
+
+def update_exit_in_firebase(name, out_time):
+    ref = get_firebase_visitor_ref(name)
+    if not ref:
+        return
+
+    ref.update({
+        "gateOutTime": out_time,
+        "status": "EXITED"
+    })
+
+# -------------------------
+# REHYDRATE VISITORS
 # -------------------------
 def load_active_visitors_from_firebase():
-    """
-    Rebuild in-memory VISITORS dict from Firebase
-    Handles both dict-style and list-style data
-    """
     VISITORS.clear()
 
     ref = db.reference("visitorRequests")
     data = ref.get()
 
     if not data:
-        print("No visitors found in Firebase")
         return
 
-    # CASE 1: Firebase returned a LIST
-    if isinstance(data, list):
-        visitors_iterable = data
-    else:
-        # CASE 2: Firebase returned a DICT
-        visitors_iterable = data.values()
-
-    for visitor in visitors_iterable:
-        if not visitor:
-            continue
-
-        if visitor.get("status") == "INSIDE":
+    for visitor in data.values():
+        if visitor and visitor.get("status") == "INSIDE":
             name = visitor.get("name")
             if not name:
                 continue
 
-            now_time = datetime.now().strftime("%H:%M:%S")
-
             VISITORS[name] = {
                 "name": name,
-                "current": "Gate",
-                "history": [
-                    {"time": now_time, "zone": "Gate"}
-                ],
-                "in": visitor.get("gateInTime", now_time),
+                "current": visitor.get("currentZone", "Gate"),
+                "history": visitor.get("history", []),
+                "in": visitor.get("gateInTime"),
                 "out": None,
                 "last_seen": time.time()
             }
 
-    print("Rehydrated visitors after restart:")
-    for v in VISITORS:
-        print(" -", v)
-
+    print("Rehydrated visitors:", list(VISITORS.keys()))
 
 # -------------------------
-# TRIANGULATION FUNCTION
+# WIFI TRIANGULATION
 # -------------------------
 def get_zone_from_wifi():
     iface.scan()
     time.sleep(2)
     results = iface.scan_results()
 
-    strongest_net = None
-
+    strongest = None
     for net in results:
-        if net.bssid:
-            if strongest_net is None or net.signal > strongest_net.signal:
-                strongest_net = net
+        if net.bssid and (not strongest or net.signal > strongest.signal):
+            strongest = net
 
-    if strongest_net:
-        return ZONE_MAP.get(strongest_net.bssid, "Unknown Zone")
-
-    return "Unknown Zone"
+    return ZONE_MAP.get(strongest.bssid, "Unknown Zone") if strongest else "Unknown Zone"
 
 # -------------------------
 # LOCATION UPDATE LOGIC
@@ -110,31 +124,31 @@ def update_locations():
     now = time.time()
 
     for v in VISITORS.values():
-
-        # skip exited visitors
         if v["out"] is not None:
             continue
 
         new_zone = get_zone_from_wifi()
 
-        # if signal detected
         if new_zone != "Unknown Zone":
             v["last_seen"] = now
 
             if v["current"] != new_zone:
                 v["current"] = new_zone
-                v["history"].append({
+                entry = {
                     "time": datetime.now().strftime("%H:%M:%S"),
                     "zone": new_zone
-                })
+                }
+                v["history"].append(entry)
+                append_history_to_firebase(v["name"], entry)
 
-        # EXIT LOGIC (25 seconds timeout)
-        elif now - v["last_seen"] > 2500000:
-            v["out"] = datetime.now().strftime("%H:%M:%S")
-            print(f"{v['name']} exited at {v['out']}")
+        elif now - v["last_seen"] > 25:
+            out_time = datetime.now().strftime("%H:%M:%S")
+            v["out"] = out_time
+            update_exit_in_firebase(v["name"], out_time)
+            print(f"{v['name']} exited at {out_time}")
 
 # -------------------------
-# GET VISITORS (FRONTEND)
+# API: GET VISITORS
 # -------------------------
 @app.route("/visitors")
 def get_visitors():
@@ -142,13 +156,11 @@ def get_visitors():
     return jsonify(list(VISITORS.values()))
 
 # -------------------------
-# CHECK-IN
+# API: CHECK-IN
 # -------------------------
 @app.route("/checkin", methods=["POST"])
 def checkin():
-    data = request.json
-    name = data.get("name")
-
+    name = request.json.get("name")
     if not name:
         return {"error": "name required"}, 400
 
@@ -165,19 +177,29 @@ def checkin():
         "last_seen": time.time()
     }
 
+    ref = get_firebase_visitor_ref(name)
+    if ref:
+        ref.update({
+            "gateInTime": now_time,
+            "currentZone": "Gate",
+            "history": [{"time": now_time, "zone": "Gate"}],
+            "status": "INSIDE"
+        })
+
     print(f"{name} checked in")
     return {"message": "checked in"}, 200
 
 # -------------------------
-# CHECK-OUT
+# API: CHECK-OUT
 # -------------------------
 @app.route("/checkout", methods=["POST"])
 def checkout():
-    data = request.json
-    name = data.get("name")
+    name = request.json.get("name")
 
     if name in VISITORS:
-        VISITORS[name]["out"] = datetime.now().strftime("%H:%M:%S")
+        out_time = datetime.now().strftime("%H:%M:%S")
+        VISITORS[name]["out"] = out_time
+        update_exit_in_firebase(name, out_time)
         print(f"{name} checked out")
 
     return {"message": "checked out"}, 200

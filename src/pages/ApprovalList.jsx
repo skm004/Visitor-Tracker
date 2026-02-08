@@ -8,7 +8,7 @@ function ApprovalList() {
   const [requests, setRequests] = useState([]);
 
   // ---------------------------
-  // Fetch pending requests
+  // Fetch ONLY pending requests
   // ---------------------------
   const fetchRequests = async () => {
     try {
@@ -36,11 +36,19 @@ function ApprovalList() {
 
   // ---------------------------
   // Approve visitor
+  // Ensures visitDate exists
   // ---------------------------
-  const approveVisitor = async (id) => {
+  const approveVisitor = async (id, existingDate) => {
+    const today = new Date().toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+
     try {
       await update(ref(db, `visitorRequests/${id}`), {
         status: "APPROVED",
+        visitDate: existingDate || today,
       });
 
       fetchRequests();
@@ -61,8 +69,6 @@ function ApprovalList() {
 
     try {
       await remove(ref(db, `visitorRequests/${visitorId}`));
-      console.log("Visitor rejected and deleted:", visitorId);
-
       fetchRequests();
     } catch (error) {
       console.error("Error deleting visitor:", error);
@@ -71,7 +77,7 @@ function ApprovalList() {
   };
 
   // ---------------------------
-  // Auto load on page open
+  // Auto load
   // ---------------------------
   useEffect(() => {
     fetchRequests();
@@ -93,6 +99,7 @@ function ApprovalList() {
                 <th>Phone</th>
                 <th>Purpose</th>
                 <th>Person To Meet</th>
+                <th>Visit Date</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -100,7 +107,7 @@ function ApprovalList() {
             <tbody>
               {requests.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: "center" }}>
+                  <td colSpan="7" style={{ textAlign: "center" }}>
                     No pending requests
                   </td>
                 </tr>
@@ -112,11 +119,14 @@ function ApprovalList() {
                     <td>{v.phone}</td>
                     <td>{v.purpose}</td>
                     <td>{v.personToMeet}</td>
+                    <td>{v.visitDate || "-"}</td>
                     <td>
                       <div className="action-buttons">
                         <button
                           className="approve-btn"
-                          onClick={() => approveVisitor(v.id)}
+                          onClick={() =>
+                            approveVisitor(v.id, v.visitDate)
+                          }
                         >
                           Approve
                         </button>

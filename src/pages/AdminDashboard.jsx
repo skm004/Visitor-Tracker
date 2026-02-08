@@ -38,6 +38,7 @@ function AdminDashboard() {
           <DashboardCard
             title="Visitor Records"
             description="Past and upcoming approved visits"
+            link="/history"
           />
         </div>
 
