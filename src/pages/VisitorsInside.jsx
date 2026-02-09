@@ -15,7 +15,14 @@ function VisitorsInside() {
   const [flaskVisitors, setFlaskVisitors] = useState([]);
   const [visitors, setVisitors] = useState([]);
   const [selectedVisitorName, setSelectedVisitorName] = useState(null);
-  
+
+  // today in consistent format
+  const today = new Date().toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
   // ---------------------------------
   // 1️⃣ Firebase realtime listener
   // ---------------------------------
@@ -30,18 +37,22 @@ function VisitorsInside() {
 
       const data = snapshot.val();
 
-      const inside = Object.keys(data)
+      const todayVisitors = Object.keys(data)
         .map((key) => ({
           id: key,
           ...data[key],
         }))
-        .filter((v) => v.status === "INSIDE");
+        .filter(
+          (v) =>
+            v.visitDate === today &&
+            (v.status === "INSIDE" || v.status === "EXITED")
+        );
 
-      setFirebaseVisitors(inside);
+      setFirebaseVisitors(todayVisitors);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [today]);
 
   // ---------------------------------
   // 2️⃣ Flask polling (every 1 second)
@@ -60,17 +71,14 @@ function VisitorsInside() {
       }
     };
 
-    // initial fetch
     fetchTracking();
-
-    // poll every 1s
     const interval = setInterval(fetchTracking, 1000);
 
     return () => clearInterval(interval);
   }, []);
 
   // ---------------------------------
-  // 3️⃣ Merge Firebase + Flask
+  // 3️⃣ Merge Firebase + Flask (FIXED)
   // ---------------------------------
   useEffect(() => {
     const merged = firebaseVisitors.map((fv) => {
@@ -81,10 +89,10 @@ function VisitorsInside() {
 
       return {
         ...fv,
-        current: loc?.current ?? "-",
-        history: loc?.history ?? [],
-        in: loc?.in ?? "-",
-        out: loc?.out ?? null,
+        current: loc?.current ?? fv.currentZone ?? "-",
+        history: loc?.history ?? fv.history ?? [],
+        in: fv.gateInTime ?? "-",
+        out: loc?.out ?? fv.gateOutTime ?? null,
       };
     });
 
@@ -100,7 +108,7 @@ function VisitorsInside() {
       <Navbar />
 
       <div className="dashboard-container">
-        <h2>Visitors Currently Inside</h2>
+        <h2>Today&apos;s Visitors</h2>
 
         <div className="table-card">
           <table className="visitor-table">
@@ -111,6 +119,7 @@ function VisitorsInside() {
                 <th>In Time</th>
                 <th>Out Time</th>
                 <th>Current Zone</th>
+                <th>Status</th>
                 <th>History</th>
               </tr>
             </thead>
@@ -118,8 +127,8 @@ function VisitorsInside() {
             <tbody>
               {visitors.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: "center" }}>
-                    No visitors inside
+                  <td colSpan="7" style={{ textAlign: "center" }}>
+                    No visitors for today
                   </td>
                 </tr>
               ) : (
@@ -130,6 +139,15 @@ function VisitorsInside() {
                     <td>{v.in}</td>
                     <td>{v.out || "-"}</td>
                     <td>{v.current}</td>
+                    <td>
+                      <span
+                        className={`status-badge ${
+                          v.out ? "exited" : "inside"
+                        }`}
+                      >
+                        {v.out ? "EXITED" : "INSIDE"}
+                      </span>
+                    </td>
                     <td>
                       <button
                         className="view-btn"
