@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";  // ⭐ realtime only
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDGJWO91Sd00Jy7d7TVKyPu3M70mEGZyF8",
@@ -14,3 +15,4 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const db = getDatabase(app); // ⭐ THIS IS THE FIX
+export const auth = getAuth(app);

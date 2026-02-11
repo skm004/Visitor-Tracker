@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import HomePage from "./components/HomePage";
+import Login from './components/login';
+import Signup from './components/Signup';
 import AdminDashboard from "./pages/AdminDashboard";
 import VisitorsInside from "./pages/VisitorsInside";
 import ApprovalList from "./pages/ApprovalList";
@@ -11,7 +13,13 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/admin" element={<AdminDashboard />} />
+
+        {/* Admin Authentication */}
+        <Route path="/admin" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+
+        {/* Dashboard Pages */}
+        <Route path="/dashboard" element={<AdminDashboard />} />
         <Route path="/approvals" element={<ApprovalList />} />
         <Route path="/visitors-inside" element={<VisitorsInside />} />
         <Route path="/gate" element={<GatePortal />} />
