@@ -1,7 +1,6 @@
 import firebase_admin
 from firebase_admin import credentials, db
 from datetime import datetime
-import pywifi
 import time
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -29,8 +28,8 @@ VISITORS = {}
 # -------------------------
 # WIFI SETUP
 # -------------------------
-wifi = pywifi.PyWiFi()
-iface = wifi.interfaces()[0]
+
+
 
 # -------------------------
 # 🔑 FIREBASE HELPERS
@@ -122,30 +121,39 @@ def get_zone_from_wifi():
 # -------------------------
 def update_locations():
     now = time.time()
+    ref = db.reference("visitorRequests")
+    data = ref.get()
+
+    if not data:
+        return
 
     for v in VISITORS.values():
         if v["out"] is not None:
             continue
 
-        new_zone = get_zone_from_wifi()
+        # Find this visitor's Firebase record
+        for key, record in data.items():
+            if record and record.get("name") == v["name"]:
+                new_zone = record.get("currentZone", "")
 
-        if new_zone != "Unknown Zone":
-            v["last_seen"] = now
+                if new_zone and new_zone != "Unknown Zone":
+                    v["last_seen"] = now
 
-            if v["current"] != new_zone:
-                v["current"] = new_zone
-                entry = {
-                    "time": datetime.now().strftime("%H:%M:%S"),
-                    "zone": new_zone
-                }
-                v["history"].append(entry)
-                append_history_to_firebase(v["name"], entry)
+                    if v["current"] != new_zone:
+                        v["current"] = new_zone
+                        entry = {
+                            "time": datetime.now().strftime("%H:%M:%S"),
+                            "zone": new_zone
+                        }
+                        v["history"].append(entry)
+                        # No need to write back, mobile already wrote it
 
-        elif now - v["last_seen"] > 25:
-            out_time = datetime.now().strftime("%H:%M:%S")
-            v["out"] = out_time
-            update_exit_in_firebase(v["name"], out_time)
-            print(f"{v['name']} exited at {out_time}")
+                elif now - v["last_seen"] > 25:
+                    out_time = datetime.now().strftime("%H:%M:%S")
+                    v["out"] = out_time
+                    update_exit_in_firebase(v["name"], out_time)
+
+                break
 
 # -------------------------
 # API: GET VISITORS
