@@ -83,8 +83,10 @@ def load_active_visitors_from_firebase():
 
     if not data:
         return
+    
+    visitors = data.values() if isinstance(data, dict) else [v for v in data if v is not None]
 
-    for visitor in data.values():
+    for visitor in visitors:
         if visitor and visitor.get("status") == "INSIDE":
             name = visitor.get("name")
             if not name:

@@ -7,10 +7,12 @@ import VisitorsInside from "./pages/VisitorsInside";
 import ApprovalList from "./pages/ApprovalList";
 import GatePortal from "./pages/GatePortal";
 import HistoryPage from "./pages/HistoryPage";
+import FloatingThemeToggle from "./components/FloatingThemeToggle";
 
 function App() {
   return (
     <BrowserRouter>
+      <FloatingThemeToggle />
       <Routes>
         <Route path="/" element={<HomePage />} />
 

@@ -1,371 +1,234 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { gsap } from 'gsap';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import gsap from 'gsap';
 import { ref, get } from "firebase/database";
-import { db } from "../firebase";
-import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
+import '../styles/auth.css';
 
-
-const Login = () => {
-  const containerRef = useRef(null);
-  const formRef = useRef(null);
-  const titleRef = useRef(null);
-  const inputRefs = useRef([]);
-  const buttonRef = useRef(null);
-  const linkRef = useRef(null);
-  const orbitRefs = useRef([]);
-  const decorRefs = useRef([]);
-
-  // ✅ STATES
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+export default function Login() {
   const navigate = useNavigate();
 
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+
+  const formRef = useRef(null);
+  const leftRef = useRef(null);
+
+  // GSAP animations
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Initial setup
-      gsap.set(formRef.current, { opacity: 0, y: 50 });
-      gsap.set(titleRef.current, { opacity: 0, y: -30, scale: 0.9 });
-      gsap.set(inputRefs.current, { opacity: 0, x: -30 });
-      gsap.set(buttonRef.current, { opacity: 0, scale: 0.8 });
-      gsap.set(linkRef.current, { opacity: 0 });
-      gsap.set(decorRefs.current, { opacity: 0, scale: 0 });
-
-      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
-
-      tl.to(decorRefs.current, {
-        opacity: 1,
-        scale: 1,
-        duration: 1.2,
-        stagger: 0.15,
-        ease: 'elastic.out(1, 0.6)',
-      });
-
-      tl.to(formRef.current, {
-        opacity: 1,
-        y: 0,
-        duration: 1,
-      }, '-=0.6');
-
-      tl.to(titleRef.current, {
-        opacity: 1,
-        y: 0,
-        scale: 1,
-        duration: 0.8,
-      }, '-=0.5');
-
-      tl.to(inputRefs.current, {
-        opacity: 1,
-        x: 0,
-        duration: 0.6,
-        stagger: 0.15,
-      }, '-=0.4');
-
-      tl.to(buttonRef.current, {
-        opacity: 1,
-        scale: 1,
-        duration: 0.5,
-        ease: 'back.out(2)',
-      }, '-=0.3');
-
-      tl.to(linkRef.current, {
-        opacity: 1,
-        duration: 0.5,
-      }, '-=0.2');
-
-      // 🔄 Orbit rotation animation
-      orbitRefs.current.forEach((orbit, index) => {
-        if (orbit) {
-          gsap.to(orbit, {
-            rotation: 360,
-            duration: 20 + index * 5,
-            repeat: -1,
-            ease: 'none',
-          });
-        }
-      });
-
-      // 🔄 Floating shapes animation
-      decorRefs.current.forEach((decor, index) => {
-        if (decor) {
-          gsap.to(decor, {
-            y: '+=20',
-            duration: 2 + index * 0.5,
-            repeat: -1,
-            yoyo: true,
-            ease: 'sine.inOut',
-          });
-        }
-      });
-
-    }, containerRef);
+      // 3D Glassmorphic Flip Entrance
+      if (formRef.current) {
+        gsap.set(formRef.current.parentElement, { perspective: 1200 });
+        gsap.fromTo(formRef.current,
+          { opacity: 0, scale: 0.9, rotationX: 10, y: 30 },
+          { opacity: 1, scale: 1, rotationX: 0, y: 0, duration: 1.2, ease: 'power4.out', delay: 0.1 }
+        );
+        const fields = formRef.current.querySelectorAll('.gsap-field');
+        gsap.fromTo(fields,
+          { opacity: 0, y: 10 },
+          { opacity: 1, y: 0, duration: 0.8, stagger: 0.08, ease: 'power3.out', delay: 0.3 }
+        );
+      }
+      if (leftRef.current) {
+        const els = leftRef.current.querySelectorAll('.gsap-left');
+        gsap.fromTo(els,
+          { opacity: 0, y: 20 },
+          { opacity: 1, y: 0, duration: 1, stagger: 0.1, ease: 'power3.out', delay: 0.2 }
+        );
+      }
+    });
 
     return () => ctx.revert();
   }, []);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+  const shakeForm = () => {
+    gsap.fromTo(formRef.current, { x: -8 }, { x: 0, duration: 0.45, ease: 'elastic.out(1,0.3)' });
+  };
 
-        try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!email || !password) { 
+        setError('Please fill in all fields.'); 
+        shakeForm(); 
+        return; 
+    }
 
-            // 🔎 Check if this user is admin
-            const snapshot = await get(ref(db, "admins/" + user.uid));
+    setLoading(true);
 
-            if (!snapshot.exists()) {
-            alert("Access denied. Not an admin.");
-            return;
-            }
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-            navigate("/dashboard");
+      const snapshot = await get(ref(db, 'admins/' + user.uid));
 
-            // navigate to dashboard here
+      if (!snapshot.exists()) {
+        setLoading(false);
+        setError('Access denied. Not an admin.');
+        shakeForm();
+        return;
+      }
 
-        } catch (error) {
-            console.log(error);
-            console.log(error.code);
-            console.log(error.message);
-            alert(error.message);
-          }
-    };
+      // Success
+      gsap.to(formRef.current, {
+        scale: 0.95, opacity: 0, duration: 0.3, ease: 'power2.in',
+        onComplete: () => {
+          navigate('/dashboard', { replace: true });
+        },
+      });
 
+    } catch (err) {
+      setLoading(false);
+      const msg =
+        err.code === 'auth/invalid-credential' ? 'Wrong email or password.' :
+        err.code === 'auth/user-not-found' ? 'No account with this email.' :
+        err.code === 'auth/too-many-requests' ? 'Too many attempts. Try later.' :
+        'Something went wrong. Try again.';
+      setError(msg);
+      shakeForm();
+    }
+  };
 
   return (
-    <div ref={containerRef} style={styles.container}>
+    <div className="auth-page">
+      <div className="auth-bg-shape1" />
+      <div className="auth-bg-shape2" />
 
-      {/* Decorative Background Elements */}
-      <div
-        ref={(el) => (decorRefs.current[0] = el)}
-        style={{ ...styles.decorShape, ...styles.shape1 }}
-      />
-      <div
-        ref={(el) => (decorRefs.current[1] = el)}
-        style={{ ...styles.decorShape, ...styles.shape2 }}
-      />
-      <div
-        ref={(el) => (decorRefs.current[2] = el)}
-        style={{ ...styles.decorShape, ...styles.shape3 }}
-      />
+      {/* ── LEFT PANEL ── */}
+      <div className="auth-left" ref={leftRef}>
+        <div className="auth-brand-logo gsap-left">
+          <div className="auth-brand-icon">VT</div>
+          <span className="auth-brand-name">VisitorTracker</span>
+        </div>
 
-      {/* Orbiting elements */}
-      <div ref={(el) => (orbitRefs.current[0] = el)} style={styles.orbit1}>
-        <div style={styles.orbitDot} />
-      </div>
-      <div ref={(el) => (orbitRefs.current[1] = el)} style={styles.orbit2}>
-        <div style={styles.orbitDot} />
-      </div>
-
-      {/* Main Form */}
-      <div ref={formRef} style={styles.formContainer}>
-        <h1 ref={titleRef} style={styles.title}>
-          Welcome Back
+        <h1 className="auth-heading gsap-left">
+          Log visitors securely,<br />
+          <span className="auth-accent">monitor seamlessly.</span>
         </h1>
 
-        <p style={styles.subtitle}>
-          Enter your credentials to continue
+        <p className="auth-sub gsap-left">
+          Manage your enterprise security, gate approvals, and realtime 
+          visitor tracking in a single, intuitive interface.
         </p>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Email Address</label>
-            <input
-              ref={(el) => (inputRefs.current[0] = el)}
-              type="email"
-              placeholder="you@example.com"
-              style={styles.input}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
+        <div className="auth-features gsap-left">
+          {[
+            { text: 'Real-time dashboard analytics' },
+            { text: 'QR code rapid check-ins' },
+            { text: 'Triangulation zone tracking' },
+          ].map((f, i) => (
+            <div key={i} className="auth-feature">
+              <svg className="auth-feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>{f.text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
 
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Password</label>
-            <input
-              ref={(el) => (inputRefs.current[1] = el)}
-              type="password"
-              placeholder="••••••••"
-              style={styles.input}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
+      {/* ── RIGHT PANEL ── */}
+      <div className="auth-right">
+        <div className="auth-form-card" ref={formRef}>
+          <h2 className="auth-form-title gsap-field">Welcome Back</h2>
+          <p className="auth-form-sub gsap-field">
+            Enter your credentials to access the command centre
+          </p>
 
-          <button
-            ref={buttonRef}
-            type="submit"
-            style={styles.button}
-          >
-            Sign In
-          </button>
+          <form onSubmit={handleSubmit} noValidate>
+            
+            {/* Email */}
+            <div className="auth-input-group gsap-field">
+              <label className="auth-label">Email Address</label>
+              <div className="auth-input-wrap">
+                <svg className="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="M22 7l-10 6L2 7" />
+                </svg>
+                <input
+                  type="email"
+                  className="auth-input"
+                  placeholder="admin@company.com"
+                  value={email}
+                  onChange={e => { setEmail(e.target.value); setError(''); }}
+                  autoComplete="email"
+                />
+              </div>
+            </div>
 
-          <div ref={linkRef} style={styles.signupLink}>
-            Don't have an account?{' '}
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                navigate("/signup");
-              }}
-              style={styles.linkBold}
+            {/* Password */}
+            <div className="auth-input-group gsap-field">
+              <label className="auth-label">Password</label>
+              <div className="auth-input-wrap">
+                <svg className="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  className="auth-input"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={e => { setPassword(e.target.value); setError(''); }}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="auth-eye-btn"
+                  onClick={() => setShowPass(p => !p)}
+                  tabIndex={-1}
+                >
+                  {showPass ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="auth-error-box gsap-field">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                {error}
+              </div>
+            )}
+
+            {/* Submit */}
+            <button
+              type="submit"
+              className="auth-submit-btn gsap-field"
+              disabled={loading}
             >
-              Sign up
-            </a>
-          </div>
-        </form>
+              {loading ? 'Authenticating...' : 'Sign In'}
+            </button>
+          </form>
+
+          {/* Switch */}
+          <p className="auth-switch gsap-field">
+            Don't have an admin account?{' '}
+            <Link to="/signup">Request Setup</Link>
+          </p>
+        </div>
       </div>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)',
-    fontFamily: '"Outfit", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
-    position: 'relative',
-    overflow: 'hidden',
-    padding: '20px',
-  },
-  decorShape: {
-    position: 'absolute',
-    borderRadius: '50%',
-    filter: 'blur(80px)',
-    opacity: 0.3,
-    zIndex: 1,
-  },
-  shape1: {
-    width: '400px',
-    height: '400px',
-    background: 'radial-gradient(circle, #667eea 0%, transparent 70%)',
-    top: '-100px',
-    left: '-100px',
-  },
-  shape2: {
-    width: '500px',
-    height: '500px',
-    background: 'radial-gradient(circle, #f093fb 0%, transparent 70%)',
-    bottom: '-150px',
-    right: '-150px',
-  },
-  shape3: {
-    width: '300px',
-    height: '300px',
-    background: 'radial-gradient(circle, #4facfe 0%, transparent 70%)',
-    top: '50%',
-    right: '10%',
-  },
-  orbit1: {
-    position: 'absolute',
-    width: '600px',
-    height: '600px',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: '50%',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    zIndex: 1,
-  },
-  orbit2: {
-    position: 'absolute',
-    width: '800px',
-    height: '800px',
-    border: '1px solid rgba(255, 255, 255, 0.05)',
-    borderRadius: '50%',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    zIndex: 1,
-  },
-  orbitDot: {
-    width: '12px',
-    height: '12px',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    borderRadius: '50%',
-    boxShadow: '0 0 20px rgba(102, 126, 234, 0.8)',
-    position: 'absolute',
-    top: '0',
-    left: '50%',
-    transform: 'translateX(-50%)',
-  },
-  formContainer: {
-    background: 'rgba(255, 255, 255, 0.08)',
-    backdropFilter: 'blur(20px)',
-    borderRadius: '30px',
-    padding: '50px 45px',
-    width: '100%',
-    maxWidth: '440px',
-    border: '1px solid rgba(255, 255, 255, 0.15)',
-    boxShadow: '0 25px 60px rgba(0, 0, 0, 0.4)',
-    position: 'relative',
-    zIndex: 10,
-  },
-  title: {
-    fontSize: '42px',
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: '8px',
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: '15px',
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
-    marginBottom: '40px',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '24px',
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  },
-  label: {
-    fontSize: '14px',
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.9)',
-  },
-  input: {
-    padding: '16px 20px',
-    fontSize: '15px',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    borderRadius: '14px',
-    background: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
-    outline: 'none',
-  },
-  button: {
-    padding: '16px',
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#ffffff',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    border: 'none',
-    borderRadius: '14px',
-    cursor: 'pointer',
-    marginTop: '12px',
-  },
-  signupLink: {
-    textAlign: 'center',
-    fontSize: '14px',
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: '8px',
-  },
-  linkBold: {
-    color: '#a78bfa',
-    textDecoration: 'none',
-    fontWeight: '600',
-  },
-};
-
-export default Login;
-
+}

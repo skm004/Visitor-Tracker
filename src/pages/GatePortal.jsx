@@ -96,9 +96,17 @@ function GatePortal() {
   return (
     <>
       <Navbar />
+      <div id="bg-canvas" />
 
       <div className="dashboard-container">
-        <h2>Gate Portal (Today)</h2>
+        <div className="dashboard-header">
+          <div className="dashboard-title-block">
+            <div className="section-label">Access Control</div>
+            <h2>Gate <span>Portal</span></h2>
+            <div className="dashboard-subtitle">Live Entry Management</div>
+          </div>
+          <div className="dashboard-date">{today}</div>
+        </div>
 
         <div className="table-card">
           <table className="visitor-table">
@@ -115,37 +123,39 @@ function GatePortal() {
             <tbody>
               {visitors.length === 0 ? (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: "center" }}>
-                    No visitors inside today
+                  <td colSpan="5" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+                    No visitors active at the gate today
                   </td>
                 </tr>
               ) : (
                 visitors.map((v, index) => (
                   <tr key={v.id}>
                     <td>{index + 1}</td>
-                    <td>{v.name}</td>
-                    <td>{v.phone}</td>
-                    <td>{v.status}</td>
+                    <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>{v.name}</td>
+                    <td style={{ fontFamily: "monospace", letterSpacing: "1px" }}>{v.phone}</td>
                     <td>
-                      {v.status === "APPROVED" ? (
-                        <button
-                          className="view-btn"
-                          onClick={() => checkIn(v)}
-                        >
-                          Check-In
-                        </button>
-                      ) : (
-                        <button
-                          className="view-btn"
-                          style={{
-                            background: "#ef4444",
-                            color: "white",
-                          }}
-                          onClick={() => checkOut(v)}
-                        >
-                          Check-Out
-                        </button>
-                      )}
+                      <span className={`status-badge ${v.status.toLowerCase()}`}>
+                        {v.status}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="action-buttons" style={{ justifyContent: "flex-start" }}>
+                        {v.status === "APPROVED" ? (
+                          <button
+                            className="approve-btn"
+                            onClick={() => checkIn(v)}
+                          >
+                            Check-In
+                          </button>
+                        ) : (
+                          <button
+                            className="reject-btn"
+                            onClick={() => checkOut(v)}
+                          >
+                            Check-Out
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

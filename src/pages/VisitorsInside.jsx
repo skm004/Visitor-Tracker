@@ -89,7 +89,7 @@ function VisitorsInside() {
 
       return {
         ...fv,
-        current: loc?.current ?? fv.currentZone ?? "-",
+        current: fv.currentZone ?? loc?.current ?? "-",
         history: loc?.history ?? fv.history ?? [],
         in: fv.gateInTime ?? "-",
         out: loc?.out ?? fv.gateOutTime ?? null,

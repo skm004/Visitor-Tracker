@@ -1,16 +1,21 @@
 import "../styles/dashboard.css";
 
 function HistoryModal({ visitor, onClose }) {
-  // ----------------------------
-  // 🔒 Defensive defaults
-  // ----------------------------
   const name = visitor?.name || "Visitor";
-  const history = Array.isArray(visitor?.history)
-    ? visitor.history
-    : [];
-
   const current = visitor?.current || "-";
   const out = visitor?.out || null;
+  const gateInTime = visitor?.in || null;
+
+  // ✅ Filter history to only show entries from current visit
+  const allHistory = Array.isArray(visitor?.history) ? visitor.history : [];
+
+  const history = gateInTime
+    ? allHistory.filter((h) => {
+        if (!h?.time) return false;
+        // Compare HH:MM:SS strings directly — current visit entries are after gateInTime
+        return h.time >= gateInTime;
+      })
+    : allHistory;
 
   return (
     <div className="modal-overlay">
@@ -21,9 +26,6 @@ function HistoryModal({ visitor, onClose }) {
         </div>
 
         <ul className="history-list">
-          {/* ----------------------------
-              Movement History
-          ---------------------------- */}
           {history.length === 0 ? (
             <li style={{ textAlign: "center", opacity: 0.7 }}>
               No movement history available
@@ -37,9 +39,6 @@ function HistoryModal({ visitor, onClose }) {
             ))
           )}
 
-          {/* ----------------------------
-              Live / Exit Status
-          ---------------------------- */}
           {out === null ? (
             <li className="live-row">
               <span>LIVE</span>
