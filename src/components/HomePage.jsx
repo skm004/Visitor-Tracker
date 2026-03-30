@@ -560,7 +560,7 @@ const HomePage = () => {
         <div ref={el => sectionHeadersRef.current[4] = el} className="hp-stats-wrapper">
           <div className="hp-stats-grid">
             {[
-              { num: 1500, label: "Daily Visitors" },
+              { num: 50, label: "Daily Visitors" },
               { num: 45, label: "Active Zones" },
               { num: 99, label: "Security Uptime %" },
               { num: 12, label: "Enterprise Nodes" }
@@ -575,14 +575,14 @@ const HomePage = () => {
       </section>
 
       {/* Trust */}
-      <section className="hp-trust">
+      {/* <section className="hp-trust">
         <p className="hp-trust-label">TRUSTED BY INNOVATIVE ENTERPRISES</p>
         <div className="hp-trust-logos">
           {['Acme Corp', 'Globex', 'Soylent', 'Initech', 'Umbrella'].map((name, i) => (
             <span key={i} ref={el => trustLogosRef.current[i] = el}>{name}</span>
           ))}
         </div>
-      </section>
+      </section> */}
 
       {/* Footer */}
       <footer className="hp-footer">

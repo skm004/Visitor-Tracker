@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import HomePage from "./components/HomePage";
 import Login from './components/login';
 import Signup from './components/Signup';
@@ -9,10 +9,16 @@ import GatePortal from "./pages/GatePortal";
 import HistoryPage from "./pages/HistoryPage";
 import FloatingThemeToggle from "./components/FloatingThemeToggle";
 
+const ThemeToggleWrapper = () => {
+  const location = useLocation();
+  if (location.pathname === '/') return null;
+  return <FloatingThemeToggle />;
+};
+
 function App() {
   return (
     <BrowserRouter>
-      <FloatingThemeToggle />
+      <ThemeToggleWrapper />
       <Routes>
         <Route path="/" element={<HomePage />} />
 
