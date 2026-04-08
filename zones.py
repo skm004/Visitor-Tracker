@@ -1,6 +1,17 @@
+# ─────────────────────────────────────────────────────────────
+# ZONE MAP — BSSID → Zone Name
+#
+# These MUST match the Android app's ZONE_MAP in WifiScanHelper.kt
+# The Android app writes currentZone directly to Firebase,
+# but this server-side map is used for the Flask /visitors endpoint.
+#
+# Current Android ZONE_MAP:
+#   "c4:e9:0a:e3:d2:02" → "my room wifi"
+#   "be:55:db:b0:28:06" → "my beside house"
+#   "ae:ee:21:0a:4b:b7" → "near phone"
+# ─────────────────────────────────────────────────────────────
 ZONE_MAP = {
-    "16:f3:ca:47:62:4c:": "ICT 231",
-    "62:18:9d:84:e9:5f:": "ICT 334",
-    "70:70:8b:89:4a:c3:": "ICT 111",
-    "08:45:d1:95:1a:8e:": "EXIT"
+    "c4:e9:0a:e3:d2:02": "my room wifi",
+    "be:55:db:b0:28:06": "my beside house",
+    "ae:ee:21:0a:4b:b7": "near phone"
 }

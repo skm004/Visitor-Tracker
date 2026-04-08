@@ -7,6 +7,7 @@ import DashboardCard from "../components/DashboardCard";
 import StatCard from "../components/StatCard";
 import VisitorTrendChart from "../components/VisitorTrendChart";
 import ZoneWidget from "../components/ZoneWidget";
+import RestrictedZoneAlerts from "../components/RestrictedZoneAlerts";
 import "../styles/dashboard.css";
 
 const BACKEND_URL = "http://localhost:5000";
@@ -313,6 +314,37 @@ function AdminDashboard() {
     return()=>unsub();
   },[today]);
 
+  // ── Auto-expire past-date visits ────────────────────────────────
+  // When the dashboard loads, check all PENDING / APPROVED requests.
+  // If their visitDate is before today, set status to "EXPIRED".
+  // The visitor will need to register again for a new date.
+  useEffect(() => {
+    const dbRef = ref(db, "visitorRequests");
+    onValue(dbRef, (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.val();
+      const todayDate = new Date();
+      todayDate.setHours(0, 0, 0, 0);
+
+      Object.entries(data).forEach(([key, v]) => {
+        if (!v || !v.visitDate) return;
+        // Only expire PENDING, APPROVED, or FLAGGED requests
+        if (!["PENDING", "APPROVED", "FLAGGED"].includes(v.status)) return;
+
+        // Parse "dd MMM yyyy" format (e.g. "06 Apr 2026")
+        const visitDateParsed = new Date(v.visitDate);
+        if (isNaN(visitDateParsed.getTime())) return;
+        visitDateParsed.setHours(0, 0, 0, 0);
+
+        if (visitDateParsed < todayDate) {
+          // Visit date has passed — expire it
+          update(ref(db, `visitorRequests/${key}`), { status: "EXPIRED" });
+          console.log(`Auto-expired: ${v.name} (visitDate: ${v.visitDate})`);
+        }
+      });
+    }, { onlyOnce: true }); // Run only once on dashboard load
+  }, []);
+
   useEffect(()=>{
     [{sel:".stat-card:nth-child(1) .stat-value",val:stats.pending},{sel:".stat-card:nth-child(2) .stat-value",val:stats.inside},{sel:".stat-card:nth-child(3) .stat-value",val:stats.todayTotal},{sel:".stat-card:nth-child(4) .stat-value",val:stats.activeZones}].forEach(({sel,val})=>{const el=document.querySelector(sel);if(!el)return;const cur=parseInt(el.textContent,10)||0;if(cur===val)return;gsap.fromTo(el,{textContent:cur},{textContent:val,duration:1.0,ease:"power2.out",snap:{textContent:1},onUpdate(){el.textContent=Math.round(parseFloat(el.textContent));}});});
   },[stats]);
@@ -378,6 +410,9 @@ function AdminDashboard() {
           </div>
         )}
 
+        {/* ── Restricted Zone Alerts ─────────────────────── */}
+        <RestrictedZoneAlerts />
+
         <div className="section-label">Overview</div>
         <div className="stats-grid">
           <StatCard title="Pending Approvals"  value={stats.pending}     accent="violet" icon="⏳"/>
@@ -404,9 +439,11 @@ function AdminDashboard() {
 
         <div className="section-label">Modules</div>
         <div className="card-grid">
+          <DashboardCard title="Analytics" description="Insights, metrics and volume charts" link="/analytics" tag="Grade Booster"/>
           <DashboardCard title="Approval Requests" description="Approve or reject visitor entry requests" link="/approvals" tag="Action Required"/>
           <DashboardCard title="Visitors Inside"   description="Track visitors using Wi-Fi RSSI triangulation" link="/visitors-inside" tag="Live Tracking"/>
-          <DashboardCard title="Visitor Records"   description="Past and upcoming approved visits" link="/history" tag="Analytics"/>
+          <DashboardCard title="Visitor Records"   description="Past and upcoming approved visits" link="/history" tag="Database"/>
+          <DashboardCard title="Zone Settings"     description="Manage Wi-Fi zones and restricted areas" link="/zone-settings" tag="Configuration"/>
         </div>
 
         <div className="section-label">Live Data</div>

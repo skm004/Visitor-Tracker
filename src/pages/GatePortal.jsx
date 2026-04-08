@@ -53,20 +53,24 @@ function GatePortal() {
   // ----------------------------
   const checkIn = async (v) => {
     try {
-      // 1️⃣ Notify Flask
+      // 1️⃣ Update Firebase
+      await update(ref(db, `visitorRequests/${v.id}`), {
+        status: "INSIDE",
+      });
+    } catch (err) {
+      console.error("Firebase Check-in failed:", err);
+      return; // Stop if firebase fails
+    }
+
+    try {
+      // 2️⃣ Notify Flask (does not block Firebase update if it fails)
       await fetch(`${BACKEND_URL}/checkin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: v.name }),
       });
-
-      // 2️⃣ Update Firebase
-      await update(ref(db, `visitorRequests/${v.id}`), {
-        status: "INSIDE",
-      });
-
     } catch (err) {
-      console.error("Check-in failed:", err);
+      console.error("Flask notification failed:", err);
     }
   };
 
@@ -75,21 +79,24 @@ function GatePortal() {
   // ----------------------------
   const checkOut = async (v) => {
     try {
-      // 1️⃣ Notify Flask
+      // 1️⃣ Update Firebase
+      await update(ref(db, `visitorRequests/${v.id}`), {
+        status: "EXITED",
+      });
+    } catch (err) {
+      console.error("Firebase Check-out failed:", err);
+      return; // Stop if firebase fails
+    }
+
+    try {
+      // 2️⃣ Notify Flask (does not block Firebase update if it fails)
       await fetch(`${BACKEND_URL}/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: v.name }),
       });
-
-      // 2️⃣ Update Firebase
-      await update(ref(db, `visitorRequests/${v.id}`), {
-        status: "EXITED",
-      });
-
-      // 🚫 EXITED visitors automatically disappear
     } catch (err) {
-      console.error("Check-out failed:", err);
+      console.error("Flask notification failed:", err);
     }
   };
 

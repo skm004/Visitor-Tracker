@@ -7,6 +7,8 @@ import VisitorsInside from "./pages/VisitorsInside";
 import ApprovalList from "./pages/ApprovalList";
 import GatePortal from "./pages/GatePortal";
 import HistoryPage from "./pages/HistoryPage";
+import AnalyticsDashboard from "./pages/AnalyticsDashboard";
+import ZoneSettings from "./pages/ZoneSettings";
 import FloatingThemeToggle from "./components/FloatingThemeToggle";
 
 const ThemeToggleWrapper = () => {
@@ -32,6 +34,8 @@ function App() {
         <Route path="/visitors-inside" element={<VisitorsInside />} />
         <Route path="/gate" element={<GatePortal />} />
         <Route path="/history" element={<HistoryPage />} />
+        <Route path="/analytics" element={<AnalyticsDashboard />} />
+        <Route path="/zone-settings" element={<ZoneSettings />} />
       </Routes>
     </BrowserRouter>
   );
